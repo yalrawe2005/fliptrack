@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>FlipTrack</title>
+<meta name="description" content="Inventory & profit tracker">
+<meta name="theme-color" content="#0b0d12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FlipTrack">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+:root{
+  --bg:#0b0d12; --card:#151a24; --card2:#1c2230; --line:#232b3d;
+  --text:#eef1f7; --muted:#8b93a7; --dim:#5b6377;
+  --amber:#f6a821; --amber2:#ffc45c;
+  --green:#34d399; --red:#f87171; --blue:#60a5fa; --teal:#4fd1c5;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  font-size:16px; overscroll-behavior:none; touch-action:manipulation;
+  -webkit-font-smoothing:antialiased; user-select:none; -webkit-user-select:none;
+}
+input,textarea{user-select:text;-webkit-user-select:text}
+#app{height:100dvh;display:flex;flex-direction:column}
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:24px}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+/* ---------- page header ---------- */
+.pagehead{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:calc(env(safe-area-inset-top) + 14px) 18px 6px}
+.pagehead h1{font-size:26px;font-weight:800;letter-spacing:-.4px}
+.pagehead .sub{color:var(--muted);font-size:13px;margin-top:2px}
+.iconbtn{width:40px;height:40px;border-radius:13px;background:var(--card);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;flex:none}
+.iconbtn:active{background:var(--card2)}
+.backrow{display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top) + 10px) 12px 0}
+.backbtn{display:flex;align-items:center;gap:2px;color:var(--amber);font-size:16px;font-weight:600;padding:8px}
+
+/* ---------- dashboard tiles ---------- */
+.tiles{display:flex;gap:12px;overflow-x:auto;padding:10px 18px 4px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.tiles::-webkit-scrollbar{display:none}
+.tile{min-width:240px;scroll-snap-align:start;border-radius:18px;padding:16px;flex:none;
+  border:1px solid var(--line);background:linear-gradient(160deg,var(--card2),var(--card) 60%);position:relative;overflow:hidden}
+.tile::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--tc,var(--blue))}
+.tile .t-label{font-size:13px;font-weight:700;color:var(--tc,var(--blue))}
+.tile .t-date{font-size:11px;color:var(--dim);margin-top:1px}
+.tile .t-sales{font-size:27px;font-weight:800;letter-spacing:-.5px;margin:8px 0 1px;font-variant-numeric:tabular-nums}
+.tile .t-cap{font-size:11px;color:var(--muted)}
+.tile .t-grid{display:flex;gap:0;margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.tile .t-grid>div{flex:1}
+.tile .t-k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.tile .t-v{font-size:15px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+
+.section{padding:18px 18px 0}
+.section h2{font-size:15px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-size:12.5px;margin-bottom:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px}
+
+/* chart */
+.chart-wrap svg{width:100%;height:auto;display:block}
+.chart-cap{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;margin-top:6px}
+
+/* generic rows */
+.row{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row:active{opacity:.7}
+.grow{flex:1;min-width:0}
+.r-title{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r-sub{color:var(--muted);font-size:12.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r-right{text-align:right;flex:none}
+.r-num{font-weight:700;font-size:15px;font-variant-numeric:tabular-nums}
+.pos{color:var(--green)} .neg{color:var(--red)}
+
+.thumb{width:46px;height:46px;border-radius:12px;object-fit:cover;flex:none;background:var(--card2);border:1px solid var(--line)}
+.thumb-ph{width:46px;height:46px;border-radius:12px;flex:none;background:var(--card2);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--dim);font-size:16px}
+.badge{display:inline-block;padding:2.5px 9px;border-radius:99px;font-size:11.5px;font-weight:700}
+.b-ok{background:rgba(52,211,153,.13);color:var(--green)}
+.b-low{background:rgba(248,113,113,.15);color:var(--red)}
+.b-out{background:rgba(139,147,167,.15);color:var(--muted)}
+
+.minibtn{padding:7px 13px;border-radius:11px;background:var(--card2);border:1px solid var(--line);
+  font-size:13px;font-weight:700;color:var(--amber);flex:none}
+.minibtn:active{opacity:.6}
+
+/* empty state */
+.empty{text-align:center;padding:52px 30px;color:var(--muted)}
+.empty .big{font-size:44px;margin-bottom:12px}
+.empty p{font-size:14px;line-height:1.5;margin-bottom:18px}
+
+/* buttons */
+.btn{display:block;width:100%;padding:15px;border-radius:15px;font-size:16px;font-weight:700;text-align:center}
+.btn-amber{background:linear-gradient(180deg,var(--amber2),var(--amber));color:#231a05}
+.btn-amber:active{filter:brightness(.9)}
+.btn-ghost{background:var(--card2);border:1px solid var(--line);color:var(--text)}
+.btn-ghost:active{background:var(--line)}
+.btn-danger{background:rgba(248,113,113,.12);color:var(--red)}
+.btn-danger:active{background:rgba(248,113,113,.22)}
+
+/* search */
+.search{margin:10px 18px 4px;position:relative}
+.search input{width:100%;padding:12px 14px 12px 40px;border-radius:14px;background:var(--card);
+  border:1px solid var(--line);color:var(--text);font-size:15px;outline:none}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--dim)}
+
+/* ---------- tab bar ---------- */
+nav{flex:none;display:flex;align-items:stretch;background:rgba(15,18,26,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 7px;color:var(--dim);font-size:10px;font-weight:600}
+nav button.on{color:var(--amber)}
+nav button svg{width:24px;height:24px}
+.sellfab{position:relative}
+.sellfab span.fab{width:52px;height:52px;margin-top:-24px;border-radius:50%;
+  background:linear-gradient(180deg,var(--amber2),var(--amber));display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 18px rgba(246,168,33,.35);color:#231a05}
+.sellfab:active span.fab{transform:scale(.94)}
+
+/* ---------- bottom sheet ---------- */
+#backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .22s;z-index:40;pointer-events:none}
+#backdrop.show{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:#141926;border-radius:22px 22px 0 0;
+  transform:translateY(105%);transition:transform .28s cubic-bezier(.32,.72,.32,1);
+  max-height:90dvh;display:flex;flex-direction:column;border:1px solid var(--line);border-bottom:none}
+#sheet.show{transform:translateY(0)}
+.sheet-grab{width:38px;height:5px;border-radius:3px;background:var(--line);margin:9px auto 0;flex:none}
+#sheet-content{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 20px calc(env(safe-area-inset-bottom) + 20px)}
+.sheet-title{font-size:20px;font-weight:800;margin:6px 0 16px;letter-spacing:-.3px}
+
+/* forms */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.field input,.field textarea{width:100%;padding:13px 14px;border-radius:13px;background:var(--card2);
+  border:1px solid var(--line);color:var(--text);font-size:16px;outline:none}
+.field input:focus,.field textarea:focus{border-color:var(--amber)}
+.frow{display:flex;gap:12px}
+.frow .field{flex:1}
+.moneywrap{position:relative}
+.moneywrap input{padding-left:28px}
+.moneywrap::before{content:"$";position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px}
+
+/* qty stepper */
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{width:46px;height:46px;border-radius:13px;background:var(--card2);border:1px solid var(--line);
+  font-size:24px;font-weight:700;color:var(--amber);flex:none}
+.stepper button:active{background:var(--line)}
+.stepper input{flex:1;text-align:center;font-weight:700;font-size:18px}
+
+/* photo picker */
+.photorow{display:flex;align-items:center;gap:14px}
+.photorow img{width:64px;height:64px;border-radius:14px;object-fit:cover;border:1px solid var(--line)}
+.photorow .add{width:64px;height:64px;border-radius:14px;border:1.5px dashed var(--dim);color:var(--dim);
+  display:flex;align-items:center;justify-content:center;flex:none}
+
+/* profit preview */
+.preview{background:var(--card2);border:1px solid var(--line);border-radius:15px;padding:13px 15px;margin:4px 0 16px}
+.preview .p-row{display:flex;justify-content:space-between;font-size:13.5px;color:var(--muted);padding:2.5px 0}
+.preview .p-row.total{border-top:1px solid var(--line);margin-top:7px;padding-top:9px;font-size:16px;font-weight:800;color:var(--text)}
+
+/* item detail */
+.detailhead{display:flex;gap:14px;align-items:center;padding:8px 18px 2px}
+.detailhead img,.detailhead .thumb-ph{width:64px;height:64px;border-radius:16px;font-size:22px}
+.detailhead img{object-fit:cover;border:1px solid var(--line)}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 18px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:12px 14px}
+.stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.stat .v{font-size:19px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+.actionrow{display:flex;gap:10px;padding:14px 18px 0}
+.actionrow .btn{flex:1}
+
+/* history day header */
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;padding:16px 18px 6px}
+.dayhead .d{font-size:14px;font-weight:800}
+.dayhead .p{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.daycard{margin:0 18px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:2px 14px}
+
+/* toast */
+#toast{position:fixed;top:calc(env(safe-area-inset-top) + 12px);left:50%;transform:translate(-50%,-80px);
+  background:#222b3f;border:1px solid var(--line);color:var(--text);padding:11px 20px;border-radius:99px;
+  font-size:14px;font-weight:600;z-index:99;transition:transform .3s cubic-bezier(.32,.72,.32,1);
+  box-shadow:0 8px 30px rgba(0,0,0,.5);white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#toast.show{transform:translate(-50%,0)}
+
+/* install tip */
+.tip{margin:12px 18px 0;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);
+  border-radius:15px;padding:13px 15px;font-size:13.5px;line-height:1.5;color:#bcd7fb}
+.tip b{color:#e3efff}
+
+/* item picker rows in sell sheet */
+.pickrow{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line)}
+.pickrow:last-child{border-bottom:none}
+.pickrow:active{opacity:.65}
+.pickrow.disabled{opacity:.38;pointer-events:none}
+hr.sep{border:none;border-top:1px solid var(--line);margin:16px 0}
+.note-line{color:var(--dim);font-size:12px;text-align:center;padding:14px 24px 0;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="view"></main>
+  <nav id="tabbar"></nav>
+</div>
+<div id="backdrop" onclick="App.closeSheet()"></div>
+<div id="sheet"><div class="sheet-grab"></div><div id="sheet-content"></div></div>
+<div id="toast"></div>
+<input type="file" id="photoInput" accept="image/*" hidden>
+<input type="file" id="importInput" accept="application/json,.json" hidden>
+
+<script>
+'use strict';
+/* ============================= data ============================= */
+const DB_KEY = 'fliptrack_v1';
+let db = loadDb();
+function loadDb(){
+  try{
+    const d = JSON.parse(localStorage.getItem(DB_KEY));
+    if(d && Array.isArray(d.items) && Array.isArray(d.sales)) return d;
+  }catch(e){}
+  return {items:[], sales:[]};
+}
+function save(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+/* ============================= helpers ============================= */
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => (n<0?'-':'') + '$' + Math.abs(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt0 = n => (n<0?'-':'') + '$' + Math.abs(n||0).toLocaleString('en-US',{maximumFractionDigits:2});
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const clsPL = n => n>0.004 ? 'pos' : (n<-0.004 ? 'neg' : '');
+function findItem(id){ return db.items.find(i=>i.id===id); }
+function stock(item){ return item.batches.reduce((s,b)=>s+b.remaining,0); }
+function avgCost(item){
+  const r = stock(item);
+  if(!r) return item.baseCost;
+  return item.batches.reduce((s,b)=>s+b.remaining*b.unitCost,0)/r;
+}
+function dayStart(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function monthStart(d){ const x=new Date(d); x.setDate(1); x.setHours(0,0,0,0); return x; }
+function localDateStr(d){ // YYYY-MM-DD in local time
+  const x=new Date(d);
+  return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+}
+function niceDate(d){ return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function niceDayLabel(dateStr){
+  const today = localDateStr(new Date());
+  const yest  = localDateStr(addDays(new Date(),-1));
+  if(dateStr===today) return 'Today';
+  if(dateStr===yest) return 'Yesterday';
+  const [y,m,dd] = dateStr.split('-').map(Number);
+  return new Date(y,m-1,dd).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function saleProfit(s){ return s.total - s.cost - (s.fees||0); }
+
+/* FIFO: plan which batches a sale of qty units consumes (oldest first). null = not enough stock */
+function consumePlan(item, qty){
+  let need = qty; const plan = [];
+  const batches = [...item.batches].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:0);
+  for(const b of batches){
+    if(need<=0) break;
+    const take = Math.min(b.remaining, need);
+    if(take>0){ plan.push({batchId:b.id, qty:take, unitCost:b.unitCost}); need-=take; }
+  }
+  return need>0 ? null : plan;
+}
+function statsRange(from, to){
+  let total=0, cost=0, fees=0, units=0, orders=0;
+  for(const s of db.sales){
+    const t = new Date(s.date).getTime();
+    if(t>=from && t<to){ total+=s.total; cost+=s.cost; fees+=s.fees||0; units+=s.qty; orders++; }
+  }
+  return {total, cost, fees, units, orders, profit: total-cost-fees};
+}
+
+/* ============================= toast ============================= */
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ============================= sheet ============================= */
+function openSheet(html){
+  document.getElementById('sheet-content').innerHTML = html;
+  document.getElementById('backdrop').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+}
+function closeSheet(){
+  document.getElementById('backdrop').classList.remove('show');
+  document.getElementById('sheet').classList.remove('show');
+  pendingPhoto = undefined; sellState = null;
+}
+
+/* ============================= icons ============================= */
+const IC = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg>',
+  box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.2 12 3 3 8.2v7.6L12 21l9-5.2z"/><path d="M3.3 8.3 12 13.2l8.7-4.9"/><path d="M12 21v-7.8"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.6" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.47V21a2 2 0 1 1-4 0v-.09a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-.97H3a2 2 0 1 1 0-4h.09a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32h.08a1.6 1.6 0 0 0 .97-1.47V3a2 2 0 1 1 4 0v.09a1.6 1.6 0 0 0 .97 1.47h.08a1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77v.08a1.6 1.6 0 0 0 1.47.97H21a2 2 0 1 1 0 4h-.09a1.6 1.6 0 0 0-1.47.97z"/></svg>',
+  search:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>',
+  chev:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>',
+  back:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>',
+  camera:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h2.5L8 5.8h8L17.5 8H20a1.5 1.5 0 0 1 1.5 1.5V18a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9.5A1.5 1.5 0 0 1 4 8z"/><circle cx="12" cy="13.4" r="3.4"/></svg>',
+};
+
+/* ============================= views ============================= */
+let route = {name:'dash'};
+let itemQuery = '';
+
+function go(name, itemId){
+  route = {name, itemId};
+  render();
+  document.getElementById('view').scrollTop = 0;
+}
+
+function render(){
+  const v = document.getElementById('view');
+  if(route.name==='dash') v.innerHTML = viewDash();
+  else if(route.name==='items') v.innerHTML = viewItems();
+  else if(route.name==='item') v.innerHTML = viewItemDetail(route.itemId);
+  else if(route.name==='history') v.innerHTML = viewHistory();
+  else if(route.name==='settings') v.innerHTML = viewSettings();
+  renderTabs();
+}
+
+function renderTabs(){
+  const t = route.name==='item' ? 'items' : route.name;
+  document.getElementById('tabbar').innerHTML = `
+    <button class="${t==='dash'?'on':''}" onclick="App.go('dash')">${IC.home}Dashboard</button>
+    <button class="${t==='items'?'on':''}" onclick="App.go('items')">${IC.box}Items</button>
+    <button class="sellfab" onclick="App.openSell()"><span class="fab">${IC.plus}</span>Sell</button>
+    <button class="${t==='history'?'on':''}" onclick="App.go('history')">${IC.list}History</button>
+    <button class="${t==='settings'?'on':''}" onclick="App.go('settings')">${IC.gear}Settings</button>`;
+}
+
+/* ---------- dashboard ---------- */
+function tileHTML(label, dateCap, st, color){
+  const marginPct = st.total>0 ? Math.round(st.profit/st.total*100) : 0;
+  return `<div class="tile" style="--tc:${color}">
+    <div class="t-label">${label}</div><div class="t-date">${dateCap}</div>
+    <div class="t-sales">${fmt(st.total)}</div><div class="t-cap">Sales${st.total>0?` · ${marginPct}% margin`:''}</div>
+    <div class="t-grid">
+      <div><div class="t-k">Net profit</div><div class="t-v ${clsPL(st.profit)}">${fmt(st.profit)}</div></div>
+      <div><div class="t-k">Units</div><div class="t-v">${st.units}</div></div>
+      <div><div class="t-k">Orders</div><div class="t-v">${st.orders}</div></div>
+    </div></div>`;
+}
+
+function chartHTML(){
+  const days=[]; let max=1, min=0;
+  for(let i=13;i>=0;i--){
+    const s = dayStart(addDays(new Date(),-i));
+    const st = statsRange(s.getTime(), addDays(s,1).getTime());
+    days.push({d:s, profit:st.profit});
+    if(st.profit>max) max=st.profit;
+    if(st.profit<min) min=st.profit;
+  }
+  const W=340, H=110, pad=2, bw=W/14;
+  const range = max-min || 1;
+  const y = v => pad + (max-v)/range*(H-2*pad);
+  let bars='';
+  days.forEach((d,i)=>{
+    const x = i*bw + bw*0.18, w = bw*0.64;
+    const y0=y(0), y1=y(d.profit);
+    const h = Math.max(Math.abs(y0-y1), d.profit!==0?3:1.5);
+    const top = d.profit>=0 ? y0-h : y0;
+    const col = d.profit>0 ? 'var(--green)' : d.profit<0 ? 'var(--red)' : 'var(--line)';
+    bars += `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="2.5" fill="${col}" opacity="${d.profit===0?0.6:0.92}"/>`;
+  });
+  return `<div class="card chart-wrap"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>
+    <div class="chart-cap"><span>${niceDate(days[0].d)}</span><span>Daily profit</span><span>Today</span></div></div>`;
+}
+
+function viewDash(){
+  const now = Date.now();
+  const t0 = dayStart(new Date());
+  const stToday = statsRange(t0.getTime(), now+864e5);
+  const stYest  = statsRange(addDays(t0,-1).getTime(), t0.getTime());
+  const m0 = monthStart(new Date());
+  const stMonth = statsRange(m0.getTime(), now+864e5);
+  const lm0 = monthStart(addDays(m0,-1));
+  const stLast  = statsRange(lm0.getTime(), m0.getTime());
+  const stAll   = statsRange(0, now+864e5);
+  const mon = d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+  if(!db.items.length && !db.sales.length){
+    return `<div class="pagehead"><div><h1>FlipTrack</h1><div class="sub">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div></div></div>
+    ${installTip()}
+    <div class="empty"><div class="big">📦</div>
+      <p><b style="color:var(--text)">Welcome!</b><br>Start by adding your first item —<br>then record stock and sales as they happen.</p>
+      <button class="btn btn-amber" style="max-width:260px;margin:0 auto" onclick="App.openAddItem()">+ Add your first item</button>
+    </div>`;
+  }
+
+  /* top items this month */
+  const agg = {};
+  for(const s of db.sales){
+    const t = new Date(s.date).getTime();
+    if(t>=m0.getTime()){
+      agg[s.itemId] = agg[s.itemId] || {name:s.itemName, units:0, profit:0, total:0};
+      agg[s.itemId].units+=s.qty; agg[s.itemId].profit+=saleProfit(s); agg[s.itemId].total+=s.total;
+    }
+  }
+  const top = Object.entries(agg).sort((a,b)=>b[1].profit-a[1].profit).slice(0,4);
+  const lows = db.items.filter(i=> (i.lowStock||0)>0 && stock(i)<=i.lowStock );
+
+  return `<div class="pagehead"><div><h1>FlipTrack</h1><div class="sub">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div></div>
+      <button class="iconbtn" onclick="App.openAddItem()" aria-label="Add item">${IC.plus}</button></div>
+    ${installTip()}
+    <div class="tiles">
+      ${tileHTML('Today', mon(t0), stToday, 'var(--blue)')}
+      ${tileHTML('Yesterday', mon(addDays(t0,-1)), stYest, 'var(--teal)')}
+      ${tileHTML('This month', mon(m0)+' – '+mon(t0), stMonth, 'var(--green)')}
+      ${tileHTML('Last month', lm0.toLocaleDateString('en-US',{month:'long'}), stLast, '#86d99a')}
+      ${tileHTML('All time', '', stAll, 'var(--amber)')}
+    </div>
+    <div class="section"><h2>Last 14 days</h2>${chartHTML()}</div>
+    ${lows.length?`<div class="section"><h2>⚠️ Low stock</h2><div class="card">${lows.map(i=>`
+      <div class="row" onclick="App.go('item','${i.id}')">${itemThumb(i)}
+        <div class="grow"><div class="r-title">${esc(i.name)}</div></div>
+        <span class="badge ${stock(i)===0?'b-out':'b-low'}">${stock(i)===0?'Out of stock':stock(i)+' left'}</span>
+        <button class="minibtn" onclick="event.stopPropagation();App.openAddBatch('${i.id}')">+ Stock</button>
+      </div>`).join('')}</div></div>`:''}
+    ${top.length?`<div class="section"><h2>Top items · this month</h2><div class="card">${top.map(([id,a])=>`
+      <div class="row" onclick="App.go('item','${id}')">
+        <div class="grow"><div class="r-title">${esc(a.name)}</div><div class="r-sub">${a.units} sold · ${fmt(a.total)} sales</div></div>
+        <div class="r-right"><div class="r-num ${clsPL(a.profit)}">${fmt(a.profit)}</div><div class="r-sub">profit</div></div>
+      </div>`).join('')}</div></div>`:''}
+    <div class="note-line">All data is saved on this phone. Back it up any time in Settings.</div>`;
+}
+
+function installTip(){
+  const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  if(standalone) return '';
+  return `<div class="tip">📲 <b>Install this app:</b> tap the <b>Share</b> button in Safari, then <b>Add to Home Screen</b>. It becomes a full-screen app that works offline.</div>`;
+}
+
+/* ---------- items ---------- */
+function itemThumb(i){
+  if(i.photo) return `<img class="thumb" src="${i.photo}" alt="">`;
+  const init = (i.name.trim()[0]||'?').toUpperCase();
+  return `<div class="thumb-ph">${esc(init)}</div>`;
+}
+
+function viewItems(){
+  const q = itemQuery.trim().toLowerCase();
+  const items = db.items.filter(i=>!q || i.name.toLowerCase().includes(q))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  return `<div class="pagehead"><div><h1>Items</h1><div class="sub">${db.items.length} item${db.items.length!==1?'s':''} · ${db.items.reduce((s,i)=>s+stock(i),0)} units in stock</div></div>
+      <button class="iconbtn" onclick="App.openAddItem()" aria-label="Add item">${IC.plus}</button></div>
+    <div class="search">${IC.search}<input placeholder="Search items…" value="${esc(itemQuery)}" oninput="App.itemSearch(this.value)"></div>
+    ${items.length ? `<div class="section"><div class="card">${items.map(i=>{
+        const st = stock(i);
+        const badge = st===0 ? '<span class="badge b-out">Out</span>'
+          : (i.lowStock&&st<=i.lowStock) ? `<span class="badge b-low">${st} left</span>`
+          : `<span class="badge b-ok">${st} in stock</span>`;
+        return `<div class="row" onclick="App.go('item','${i.id}')">${itemThumb(i)}
+          <div class="grow"><div class="r-title">${esc(i.name)}</div>
+            <div class="r-sub">Cost ${fmt(avgCost(i))}${i.baseCost!==avgCost(i)?' avg':''}</div></div>
+          ${badge}
+          <button class="minibtn" onclick="event.stopPropagation();App.openSell('${i.id}')">Sell</button>
+        </div>`;}).join('')}</div></div>`
+      : `<div class="empty"><div class="big">🔍</div><p>${db.items.length?'No items match your search.':'No items yet.'}</p>
+         ${db.items.length?'':`<button class="btn btn-amber" style="max-width:240px;margin:0 auto" onclick="App.openAddItem()">+ Add an item</button>`}</div>`}`;
+}
+
+/* ---------- item detail ---------- */
+function viewItemDetail(id){
+  const i = findItem(id);
+  if(!i){ route={name:'items'}; return viewItems(); }
+  const st = stock(i);
+  const sales = db.sales.filter(s=>s.itemId===id).sort((a,b)=> b.date<a.date?-1:1);
+  const lifeUnits = sales.reduce((s,x)=>s+x.qty,0);
+  const lifeProfit = sales.reduce((s,x)=>s+saleProfit(x),0);
+  const batches = [...i.batches].sort((a,b)=> b.date<a.date?-1:1);
+  return `<div class="backrow"><button class="backbtn" onclick="App.go('items')">${IC.back} Items</button></div>
+    <div class="detailhead">${itemThumb(i)}
+      <div class="grow"><div style="font-size:20px;font-weight:800;letter-spacing:-.3px">${esc(i.name)}</div>
+        <div class="r-sub">Base price ${fmt(i.baseCost)} · avg cost ${fmt(avgCost(i))}</div></div>
+      <button class="minibtn" onclick="App.openEditItem('${i.id}')">Edit</button></div>
+    <div class="statgrid">
+      <div class="stat"><div class="k">In stock</div><div class="v" style="color:${st===0?'var(--red)':(i.lowStock&&st<=i.lowStock)?'var(--red)':'var(--text)'}">${st}</div></div>
+      <div class="stat"><div class="k">Stock value</div><div class="v">${fmt(i.batches.reduce((s,b)=>s+b.remaining*b.unitCost,0))}</div></div>
+      <div class="stat"><div class="k">Units sold</div><div class="v">${lifeUnits}</div></div>
+      <div class="stat"><div class="k">Total profit</div><div class="v ${clsPL(lifeProfit)}">${fmt(lifeProfit)}</div></div>
+    </div>
+    <div class="actionrow">
+      <button class="btn btn-ghost" onclick="App.openAddBatch('${i.id}')">＋ Add stock</button>
+      <button class="btn btn-amber" onclick="App.openSell('${i.id}')">Sell</button>
+    </div>
+    <div class="section"><h2>Stock batches</h2><div class="card">
+      ${batches.length ? batches.map(b=>`
+        <div class="row">
+          <div class="grow"><div class="r-title">${b.qty} received @ ${fmt(b.unitCost)}</div>
+            <div class="r-sub">${niceDate(b.date)}${b.note?' · '+esc(b.note):''}</div></div>
+          <div class="r-right"><div class="r-num">${b.remaining}</div><div class="r-sub">left</div></div>
+          <button class="minibtn" style="color:var(--red)" onclick="App.deleteBatch('${i.id}','${b.id}')">✕</button>
+        </div>`).join('') : `<div class="r-sub" style="padding:10px 4px">No stock yet — tap “Add stock”.</div>`}
+    </div></div>
+    <div class="section"><h2>Sales of this item</h2><div class="card">
+      ${sales.length ? sales.slice(0,25).map(s=>saleRow(s,false)).join('') : `<div class="r-sub" style="padding:10px 4px">No sales yet.</div>`}
+    </div></div>`;
+}
+
+function saleRow(s, showName){
+  const p = saleProfit(s);
+  return `<div class="row" onclick="App.openSaleDetail('${s.id}')">
+    <div class="grow"><div class="r-title">${showName?esc(s.itemName):('Sold '+s.qty+(s.qty>1?' units':' unit'))}</div>
+      <div class="r-sub">${showName? s.qty+' × for '+fmt(s.total) : niceDate(s.date)}${s.note?' · '+esc(s.note):''}</div></div>
+    <div class="r-right"><div class="r-num ${clsPL(p)}">${p>=0?'+':''}${fmt(p)}</div><div class="r-sub">${fmt(s.total)} sale</div></div>
+  </div>`;
+}
+
+/* ---------- history ---------- */
+function viewHistory(){
+  const sales = [...db.sales].sort((a,b)=> b.date<a.date?-1:1);
+  if(!sales.length) return `<div class="pagehead"><div><h1>History</h1><div class="sub">Every sale you record shows here</div></div></div>
+    <div class="empty"><div class="big">🧾</div><p>No sales yet.<br>Tap the amber <b>Sell</b> button to record your first one.</p></div>`;
+  const groups = [];
+  for(const s of sales){
+    const key = localDateStr(s.date);
+    if(!groups.length || groups[groups.length-1].key!==key) groups.push({key, sales:[]});
+    groups[groups.length-1].sales.push(s);
+  }
+  return `<div class="pagehead"><div><h1>History</h1><div class="sub">${sales.length} sale${sales.length!==1?'s':''} recorded</div></div></div>
+    ${groups.map(g=>{
+      const p = g.sales.reduce((s,x)=>s+saleProfit(x),0);
+      return `<div class="dayhead"><span class="d">${niceDayLabel(g.key)}</span>
+        <span class="p ${clsPL(p)}">${p>=0?'+':''}${fmt(p)} profit</span></div>
+      <div class="daycard">${g.sales.map(s=>saleRow(s,true)).join('')}</div>`;
+    }).join('')}`;
+}
+
+/* ---------- settings ---------- */
+function viewSettings(){
+  const bytes = (localStorage.getItem(DB_KEY)||'').length;
+  return `<div class="pagehead"><div><h1>Settings</h1><div class="sub">Backup & data</div></div></div>
+    ${installTip()}
+    <div class="section"><h2>Backup</h2><div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-ghost" onclick="App.exportData()">⬇️ Export backup file</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('importInput').click()">⬆️ Restore from backup</button>
+      <div class="r-sub" style="text-align:center">Your data lives only on this phone (${(bytes/1024).toFixed(1)} KB used).<br>Export a backup once in a while — save it to Files or iCloud.</div>
+    </div></div>
+    <div class="section"><h2>Danger zone</h2><div class="card">
+      <button class="btn btn-danger" onclick="App.resetAll()">Erase all data</button>
+    </div></div>
+    <div class="note-line">FlipTrack · made for Dad ❤️ · v1.0</div>`;
+}
+
+/* ============================= photo handling ============================= */
+let pendingPhoto; // undefined = untouched, null = removed, 'data:...' = new
+let photoTargetRender = null;
+function pickPhoto(renderCb){
+  photoTargetRender = renderCb;
+  document.getElementById('photoInput').click();
+}
+document.getElementById('photoInput').addEventListener('change', e=>{
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ev=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const max = 400;
+      const sc = Math.min(1, max/Math.max(img.width,img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1,Math.round(img.width*sc)); c.height = Math.max(1,Math.round(img.height*sc));
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      pendingPhoto = c.toDataURL('image/jpeg',0.72);
+      if(photoTargetRender) photoTargetRender();
+    };
+    img.src = ev.target.result;
+  };
+  rd.readAsDataURL(f);
+});
+
+function photoRowHTML(current, rerenderFn){
+  const src = pendingPhoto!==undefined ? pendingPhoto : current;
+  return `<div class="field"><label>Photo (optional)</label><div class="photorow">
+    ${src?`<img src="${src}" alt="">`:''}
+    <button type="button" class="add" onclick="App.pickPhotoFor('${rerenderFn}')">${IC.camera}</button>
+    ${src?`<button type="button" class="minibtn" style="color:var(--red)" onclick="App.clearPhoto('${rerenderFn}')">Remove</button>`:''}
+  </div></div>`;
+}
+
+/* ============================= add / edit item ============================= */
+function addItemFormHTML(){
+  return `<div class="sheet-title">New item</div>
+    <div class="field"><label>Item name</label>
+      <input id="f-name" placeholder="e.g. Steering Wheel Cover Black 9.5&quot;" autocomplete="off"></div>
+    ${photoRowHTML(null,'addItem')}
+    <div class="frow">
+      <div class="field"><label>Base price (what you pay)</label><div class="moneywrap"><input id="f-cost" type="number" inputmode="decimal" step="0.01" min="0" placeholder="3.50"></div></div>
+      <div class="field"><label>Low-stock alert</label><input id="f-low" type="number" inputmode="numeric" min="0" value="3"></div>
+    </div>
+    <hr class="sep">
+    <div class="field"><label>Starting stock (optional)</label>
+      <input id="f-initqty" type="number" inputmode="numeric" min="0" placeholder="How many do you have now?"></div>
+    <button class="btn btn-amber" onclick="App.saveItem()">Save item</button>`;
+}
+function openAddItem(){ pendingPhoto = undefined; openSheet(addItemFormHTML()); setTimeout(()=>{const el=document.getElementById('f-name'); if(el) el.focus();},350); }
+function rerenderAddItem(){
+  const name=document.getElementById('f-name').value, cost=document.getElementById('f-cost').value,
+        low=document.getElementById('f-low').value, iq=document.getElementById('f-initqty').value;
+  document.getElementById('sheet-content').innerHTML = addItemFormHTML();
+  document.getElementById('f-name').value=name; document.getElementById('f-cost').value=cost;
+  document.getElementById('f-low').value=low; document.getElementById('f-initqty').value=iq;
+}
+function saveItem(){
+  const name = document.getElementById('f-name').value.trim();
+  if(!name){ toast('Give the item a name'); return; }
+  const baseCost = num(document.getElementById('f-cost').value);
+  const low = Math.max(0, Math.round(num(document.getElementById('f-low').value)));
+  const initQty = Math.max(0, Math.round(num(document.getElementById('f-initqty').value)));
+  const item = {id:uid(), name, photo: pendingPhoto!==undefined?pendingPhoto:null, baseCost, lowStock:low, batches:[]};
+  if(initQty>0) item.batches.push({id:uid(), date:new Date().toISOString(), qty:initQty, remaining:initQty, unitCost:baseCost, note:'Starting stock'});
+  db.items.push(item); save(); closeSheet();
+  toast('“'+name+'” added'+(initQty?` with ${initQty} in stock`:''));
+  go('item', item.id);
+}
+
+function editItemFormHTML(i){
+  return `<div class="sheet-title">Edit item</div>
+    <div class="field"><label>Item name</label><input id="f-name" value="${esc(i.name)}"></div>
+    ${photoRowHTML(i.photo,'editItem')}
+    <div class="frow">
+      <div class="field"><label>Base price</label><div class="moneywrap"><input id="f-cost" type="number" inputmode="decimal" step="0.01" min="0" value="${i.baseCost}"></div></div>
+      <div class="field"><label>Low-stock alert</label><input id="f-low" type="number" inputmode="numeric" min="0" value="${i.lowStock||0}"></div>
+    </div>
+    <button class="btn btn-amber" onclick="App.saveEditItem('${i.id}')">Save changes</button>
+    <div style="height:10px"></div>
+    <button class="btn btn-danger" onclick="App.deleteItem('${i.id}')">Delete item</button>`;
+}
+function openEditItem(id){ const i=findItem(id); if(!i) return; pendingPhoto=undefined; editingId=id; openSheet(editItemFormHTML(i)); }
+let editingId=null;
+function rerenderEditItem(){
+  const i=findItem(editingId); if(!i) return;
+  const name=document.getElementById('f-name').value, cost=document.getElementById('f-cost').value, low=document.getElementById('f-low').value;
+  document.getElementById('sheet-content').innerHTML = editItemFormHTML(i);
+  document.getElementById('f-name').value=name; document.getElementById('f-cost').value=cost; document.getElementById('f-low').value=low;
+}
+function saveEditItem(id){
+  const i=findItem(id); if(!i) return;
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){ toast('Item needs a name'); return; }
+  i.name=name; i.baseCost=num(document.getElementById('f-cost').value);
+  i.lowStock=Math.max(0,Math.round(num(document.getElementById('f-low').value)));
+  if(pendingPhoto!==undefined) i.photo=pendingPhoto;
+  save(); closeSheet(); render(); toast('Saved');
+}
+function deleteItem(id){
+  const i=findItem(id); if(!i) return;
+  if(!confirm(`Delete “${i.name}”?\n\nPast sales stay in your history, but the item and its stock are removed.`)) return;
+  db.items = db.items.filter(x=>x.id!==id);
+  save(); closeSheet(); go('items'); toast('Item deleted');
+}
+
+/* ============================= add batch ============================= */
+function openAddBatch(itemId){
+  const i=findItem(itemId); if(!i) return;
+  openSheet(`<div class="sheet-title">Add stock · ${esc(i.name)}</div>
+    <div class="frow">
+      <div class="field"><label>Quantity received</label><input id="b-qty" type="number" inputmode="numeric" min="1" placeholder="20"></div>
+      <div class="field"><label>Cost per unit</label><div class="moneywrap"><input id="b-cost" type="number" inputmode="decimal" step="0.01" min="0" value="${i.baseCost}"></div></div>
+    </div>
+    <div class="field"><label>Date received</label><input id="b-date" type="date" value="${localDateStr(new Date())}"></div>
+    <div class="field"><label>Note (optional)</label><input id="b-note" placeholder="e.g. bought on sale" autocomplete="off"></div>
+    <button class="btn btn-amber" onclick="App.saveBatch('${i.id}')">Add to stock</button>`);
+  setTimeout(()=>{const el=document.getElementById('b-qty'); if(el) el.focus();},350);
+}
+function dateInputToISO(v){
+  if(!v) return new Date().toISOString();
+  if(v===localDateStr(new Date())) return new Date().toISOString();
+  const [y,m,d]=v.split('-').map(Number);
+  return new Date(y,m-1,d,12,0,0).toISOString();
+}
+function saveBatch(itemId){
+  const i=findItem(itemId); if(!i) return;
+  const qty=Math.round(num(document.getElementById('b-qty').value));
+  if(qty<1){ toast('Enter how many you received'); return; }
+  const unitCost=num(document.getElementById('b-cost').value);
+  i.batches.push({id:uid(), date:dateInputToISO(document.getElementById('b-date').value),
+    qty, remaining:qty, unitCost, note:document.getElementById('b-note').value.trim()});
+  save(); closeSheet(); render();
+  toast(`+${qty} added @ ${fmt(unitCost)} each`);
+}
+function deleteBatch(itemId,batchId){
+  const i=findItem(itemId); if(!i) return;
+  const b=i.batches.find(x=>x.id===batchId); if(!b) return;
+  if(b.remaining<b.qty){
+    if(!confirm(`${b.qty-b.remaining} of this batch were already sold.\nDelete the batch anyway? (Removes the ${b.remaining} unsold units.)`)) return;
+  } else if(!confirm(`Remove this batch of ${b.qty} @ ${fmt(b.unitCost)}?`)) return;
+  i.batches = i.batches.filter(x=>x.id!==batchId);
+  save(); render(); toast('Batch removed');
+}
+
+/* ============================= sell ============================= */
+let sellState=null;
+function openSell(itemId){
+  if(!db.items.length){ toast('Add an item first'); openAddItem(); return; }
+  if(itemId){ sellState={itemId}; renderSellForm(); }
+  else { sellState={}; renderSellPicker(''); }
+}
+function renderSellPicker(q){
+  const ql=q.trim().toLowerCase();
+  const items=db.items.filter(i=>!ql||i.name.toLowerCase().includes(ql)).sort((a,b)=>a.name.localeCompare(b.name));
+  openSheet(`<div class="sheet-title">What did you sell?</div>
+    <div class="search" style="margin:0 0 8px">${IC.search}<input placeholder="Search items…" value="${esc(q)}" oninput="App.sellSearch(this.value)"></div>
+    <div>${items.map(i=>{
+      const st=stock(i);
+      return `<div class="pickrow ${st===0?'disabled':''}" onclick="App.sellPick('${i.id}')">${itemThumb(i)}
+        <div class="grow"><div class="r-title">${esc(i.name)}</div><div class="r-sub">avg cost ${fmt(avgCost(i))}</div></div>
+        <span class="badge ${st===0?'b-out':(i.lowStock&&st<=i.lowStock)?'b-low':'b-ok'}">${st===0?'Out':st+' left'}</span></div>`;
+    }).join('') || '<div class="r-sub" style="padding:14px 4px">No items match.</div>'}</div>`);
+}
+function sellPick(id){ sellState={itemId:id}; renderSellForm(); }
+function renderSellForm(){
+  const i=findItem(sellState.itemId); if(!i) return;
+  const st=stock(i);
+  openSheet(`<div class="sheet-title">Sell · ${esc(i.name)}</div>
+    <div class="field"><label>Quantity (${st} in stock)</label>
+      <div class="stepper">
+        <button type="button" onclick="App.stepQty(-1)">−</button>
+        <input id="s-qty" type="number" inputmode="numeric" min="1" max="${st}" value="1" oninput="App.updateSellPreview()">
+        <button type="button" onclick="App.stepQty(1)">＋</button>
+      </div></div>
+    <div class="frow">
+      <div class="field"><label>Sold for (total)</label><div class="moneywrap"><input id="s-total" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" oninput="App.updateSellPreview()"></div></div>
+      <div class="field"><label>Fees / shipping (opt.)</label><div class="moneywrap"><input id="s-fees" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" oninput="App.updateSellPreview()"></div></div>
+    </div>
+    <div class="frow">
+      <div class="field"><label>Date sold</label><input id="s-date" type="date" value="${localDateStr(new Date())}"></div>
+      <div class="field"><label>Note (optional)</label><input id="s-note" placeholder="e.g. FB Marketplace" autocomplete="off"></div>
+    </div>
+    <div class="preview" id="s-preview"></div>
+    <button class="btn btn-amber" onclick="App.saveSale()">Record sale</button>`);
+  updateSellPreview();
+  setTimeout(()=>{const el=document.getElementById('s-total'); if(el) el.focus();},350);
+}
+function stepQty(d){
+  const el=document.getElementById('s-qty');
+  el.value=Math.max(1, Math.round(num(el.value)||1)+d);
+  updateSellPreview();
+}
+function updateSellPreview(){
+  const i=findItem(sellState.itemId); if(!i) return;
+  const qty=Math.max(1,Math.round(num(document.getElementById('s-qty').value)||1));
+  const total=num(document.getElementById('s-total').value);
+  const fees=num(document.getElementById('s-fees').value);
+  const plan=consumePlan(i,qty);
+  const el=document.getElementById('s-preview');
+  if(!plan){
+    el.innerHTML=`<div class="p-row" style="color:var(--red);font-weight:700">Not enough stock — only ${stock(i)} left</div>`;
+    return;
+  }
+  const cost=plan.reduce((s,p)=>s+p.qty*p.unitCost,0);
+  const profit=total-cost-fees;
+  el.innerHTML=`
+    <div class="p-row"><span>Sale</span><span>${fmt(total)}</span></div>
+    <div class="p-row"><span>Cost of goods (${qty} × avg ${fmt(cost/qty)})</span><span>−${fmt(cost)}</span></div>
+    ${fees?`<div class="p-row"><span>Fees</span><span>−${fmt(fees)}</span></div>`:''}
+    <div class="p-row total"><span>Profit</span><span class="${clsPL(profit)}">${profit>=0?'+':''}${fmt(profit)}</span></div>`;
+}
+function saveSale(){
+  const i=findItem(sellState.itemId); if(!i) return;
+  const qty=Math.max(1,Math.round(num(document.getElementById('s-qty').value)||1));
+  const total=num(document.getElementById('s-total').value);
+  const fees=num(document.getElementById('s-fees').value);
+  if(total<=0 && !confirm('Sold-for price is $0.00 — record anyway?')) return;
+  const plan=consumePlan(i,qty);
+  if(!plan){ toast(`Only ${stock(i)} in stock`); return; }
+  for(const p of plan){ const b=i.batches.find(x=>x.id===p.batchId); if(b) b.remaining-=p.qty; }
+  const cost=plan.reduce((s,p)=>s+p.qty*p.unitCost,0);
+  const sale={id:uid(), date:dateInputToISO(document.getElementById('s-date').value),
+    itemId:i.id, itemName:i.name, qty, total, fees,
+    note:document.getElementById('s-note').value.trim(), consumed:plan, cost};
+  db.sales.push(sale); save(); closeSheet(); render();
+  const p=saleProfit(sale);
+  toast(`Sale recorded · ${p>=0?'+':''}${fmt(p)} profit`);
+}
+
+/* ---------- sale detail / delete ---------- */
+function openSaleDetail(id){
+  const s=db.sales.find(x=>x.id===id); if(!s) return;
+  const p=saleProfit(s);
+  openSheet(`<div class="sheet-title">${esc(s.itemName)}</div>
+    <div class="preview">
+      <div class="p-row"><span>Date</span><span>${niceDate(s.date)}</span></div>
+      <div class="p-row"><span>Quantity</span><span>${s.qty}</span></div>
+      <div class="p-row"><span>Sold for</span><span>${fmt(s.total)}</span></div>
+      <div class="p-row"><span>Cost of goods</span><span>−${fmt(s.cost)}</span></div>
+      ${s.fees?`<div class="p-row"><span>Fees</span><span>−${fmt(s.fees)}</span></div>`:''}
+      ${s.note?`<div class="p-row"><span>Note</span><span>${esc(s.note)}</span></div>`:''}
+      <div class="p-row total"><span>Profit</span><span class="${clsPL(p)}">${p>=0?'+':''}${fmt(p)}</span></div>
+    </div>
+    <button class="btn btn-danger" onclick="App.deleteSale('${s.id}')">Delete sale (returns ${s.qty} to stock)</button>`);
+}
+function deleteSale(id){
+  const s=db.sales.find(x=>x.id===id); if(!s) return;
+  if(!confirm('Delete this sale? The units go back into stock.')) return;
+  const i=findItem(s.itemId);
+  if(i && s.consumed){
+    for(const c of s.consumed){
+      const b=i.batches.find(x=>x.id===c.batchId);
+      if(b) b.remaining=Math.min(b.qty, b.remaining+c.qty);
+    }
+  }
+  db.sales=db.sales.filter(x=>x.id!==id);
+  save(); closeSheet(); render(); toast('Sale deleted — stock restored');
+}
+
+/* ============================= backup ============================= */
+function exportData(){
+  const blob=new Blob([JSON.stringify({app:'fliptrack',version:1,exported:new Date().toISOString(),data:db},null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='fliptrack-backup-'+localDateStr(new Date())+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast('Backup ready — save it to Files');
+}
+document.getElementById('importInput').addEventListener('change', e=>{
+  const f=e.target.files && e.target.files[0];
+  e.target.value='';
+  if(!f) return;
+  const rd=new FileReader();
+  rd.onload=ev=>{
+    try{
+      const j=JSON.parse(ev.target.result);
+      const d=j && j.app==='fliptrack' ? j.data : j;
+      if(!d || !Array.isArray(d.items) || !Array.isArray(d.sales)) throw 0;
+      if(!confirm(`Restore backup with ${d.items.length} items and ${d.sales.length} sales?\n\nThis replaces everything currently in the app.`)) return;
+      db=d; save(); render(); toast('Backup restored');
+    }catch(err){ toast('That file isn’t a FlipTrack backup'); }
+  };
+  rd.readAsText(f);
+});
+function resetAll(){
+  if(!confirm('Erase ALL items and sales? This cannot be undone.')) return;
+  if(!confirm('Are you sure? Consider exporting a backup first.\n\nTap OK to erase everything.')) return;
+  db={items:[],sales:[]}; save(); go('dash'); toast('All data erased');
+}
+
+/* ============================= App (global handlers) ============================= */
+const App = {
+  go, closeSheet,
+  openAddItem, saveItem,
+  openEditItem, saveEditItem, deleteItem,
+  openAddBatch, saveBatch, deleteBatch,
+  openSell, sellPick, saveSale, stepQty, updateSellPreview,
+  sellSearch: v => { // keep focus while re-rendering the picker list
+    const q=v;
+    const sc=document.getElementById('sheet-content');
+    const ql=q.trim().toLowerCase();
+    const items=db.items.filter(i=>!ql||i.name.toLowerCase().includes(ql)).sort((a,b)=>a.name.localeCompare(b.name));
+    const list=sc.querySelector('.search').nextElementSibling;
+    list.innerHTML = items.map(i=>{
+      const st=stock(i);
+      return `<div class="pickrow ${st===0?'disabled':''}" onclick="App.sellPick('${i.id}')">${itemThumb(i)}
+        <div class="grow"><div class="r-title">${esc(i.name)}</div><div class="r-sub">avg cost ${fmt(avgCost(i))}</div></div>
+        <span class="badge ${st===0?'b-out':(i.lowStock&&st<=i.lowStock)?'b-low':'b-ok'}">${st===0?'Out':st+' left'}</span></div>`;
+    }).join('') || '<div class="r-sub" style="padding:14px 4px">No items match.</div>';
+  },
+  openSaleDetail, deleteSale,
+  exportData, resetAll,
+  itemSearch: v => {
+    itemQuery=v;
+    // re-render only the list area to keep keyboard focus
+    const view=document.getElementById('view');
+    const input=view.querySelector('.search input');
+    const pos=input.selectionStart;
+    view.innerHTML=viewItems();
+    const ni=view.querySelector('.search input');
+    ni.focus(); try{ni.setSelectionRange(pos,pos);}catch(e){}
+  },
+  pickPhotoFor: which => pickPhoto(which==='addItem'?rerenderAddItem:rerenderEditItem),
+  clearPhoto: which => { pendingPhoto=null; (which==='addItem'?rerenderAddItem:rerenderEditItem)(); },
+};
+window.App = App;
+
+/* ============================= boot ============================= */
+render();
+if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>

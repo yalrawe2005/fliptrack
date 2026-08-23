@@ -236,10 +236,11 @@ const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
 const clsPL = n => n>0.004 ? 'pos' : (n<-0.004 ? 'neg' : '');
 function findItem(id){ return db.items.find(i=>i.id===id); }
 function stock(item){ return item.batches.reduce((s,b)=>s+b.remaining,0); }
+function stockValue(item){ return item.batches.reduce((s,b)=>s+b.remaining*b.unitCost,0); }
 function avgCost(item){
   const r = stock(item);
   if(!r) return item.baseCost;
-  return item.batches.reduce((s,b)=>s+b.remaining*b.unitCost,0)/r;
+  return stockValue(item)/r;
 }
 function dayStart(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
@@ -456,7 +457,7 @@ function viewItems(){
   const q = itemQuery.trim().toLowerCase();
   const items = db.items.filter(i=>!q || i.name.toLowerCase().includes(q))
     .sort((a,b)=>a.name.localeCompare(b.name));
-  return `<div class="pagehead"><div><h1>Items</h1><div class="sub">${db.items.length} item${db.items.length!==1?'s':''} · ${db.items.reduce((s,i)=>s+stock(i),0)} units in stock</div></div>
+  return `<div class="pagehead"><div><h1>Items</h1><div class="sub">${db.items.length} item${db.items.length!==1?'s':''} · ${db.items.reduce((s,i)=>s+stock(i),0)} units in stock · ${fmt(db.items.reduce((s,i)=>s+stockValue(i),0))} stock value</div></div>
       <button class="iconbtn" onclick="App.openAddItem()" aria-label="Add item">${IC.plus}</button></div>
     <div class="search">${IC.search}<input placeholder="Search items…" value="${esc(itemQuery)}" oninput="App.itemSearch(this.value)"></div>
     ${items.length ? `<div class="section"><div class="card">${items.map(i=>{
@@ -554,7 +555,7 @@ function viewSettings(){
     <div class="section"><h2>Danger zone</h2><div class="card">
       <button class="btn btn-danger" onclick="App.resetAll()">Erase all data</button>
     </div></div>
-    <div class="note-line">FlipTrack · made for Dad ❤️ · v1.0</div>`;
+    <div class="note-line">FlipTrack · made for Dad ❤️ · v1.1</div>`;
 }
 
 /* ============================= photo handling ============================= */
